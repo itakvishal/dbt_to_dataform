@@ -1,0 +1,10 @@
+{
+  "warehouse": "bigquery",
+  "defaultDatabase": "default",
+  "defaultSchema": "target",
+  "defaultLocation": "europe-west2",
+  "assertionSchema": "dataform_assertions",
+  "vars": {
+    "dbt_date:time_zone": "America/Los_Angeles"
+  }
+}

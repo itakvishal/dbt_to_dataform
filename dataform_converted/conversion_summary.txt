@@ -1,0 +1,10 @@
+Dataform Conversion Summary
+===========================
+
+Total issues found: 1
+
+Issues that need attention:
+
+File: /Users/takvishal/Documents/dbt_to_dataform/jaffle-shop/models/staging/stg_supplies.sql
+Type: Unconverted dbt_utils Reference
+Description: This model still contains references to dbt_utils that couldn't be automatically converted.

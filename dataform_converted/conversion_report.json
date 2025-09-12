@@ -1,0 +1,10 @@
+{
+  "total_issues": 1,
+  "issues": [
+    {
+      "file": "/Users/takvishal/Documents/dbt_to_dataform/jaffle-shop/models/staging/stg_supplies.sql",
+      "type": "Unconverted dbt_utils Reference",
+      "description": "This model still contains references to dbt_utils that couldn't be automatically converted."
+    }
+  ]
+}
