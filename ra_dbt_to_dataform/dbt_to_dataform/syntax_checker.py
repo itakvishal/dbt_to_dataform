@@ -1,6 +1,6 @@
 import re
 import json
-import openai
+#import openai
 from pathlib import Path
 from dbt_to_dataform.conversion_report import ConversionReport
 

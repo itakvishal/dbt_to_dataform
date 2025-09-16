@@ -18,7 +18,50 @@ from dbt_to_dataform.source_converter import SourceConverter
 from dbt_to_dataform.conversion_report import ConversionReport
 from dbt_to_dataform.syntax_checker import SyntaxChecker
 
-def main(dbt_repo_path: str, output_path: str, openai_api_key: str = None, verbose: bool = False):
+from google import genai
+
+class GeminiSyntaxChecker:
+    def __init__(self):
+        self.client = genai.Client()
+
+    def check_and_correct_syntax(self, file_path: Path, sqlx_content: str, conversion_report):
+        try:
+            prompt = f"Review this SQL/Dataform code and correct any syntax errors. Return only the corrected code:\n\n{sqlx_content}"
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
+            corrected_sqlx = response.text
+            corrections = "Corrected syntax via Gemini."
+            return corrected_sqlx, corrections
+        except Exception as e:
+            conversion_report.add_issue(str(file_path), "Syntax Check Failed", str(e))
+            return sqlx_content, None
+
+class GeminiMacroConverter(MacroConverter):
+    def __init__(self):
+        self.client = genai.Client()
+
+    def convert_macros(self, dbt_repo_path: str, output_path: str):
+        # Iterate over macros and use Gemini to convert them
+        for macro_path in Path(dbt_repo_path).rglob("*.sql"):
+            try:
+                macro_code = macro_path.read_text()
+                prompt = f"Convert this dbt Jinja macro into Dataform JavaScript function:\n\n{macro_code}"
+                response = self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt
+                )
+                converted_macro = response.text
+
+                output_macro_path = Path(output_path) / "includes" / macro_path.name.replace(".sql", ".js")
+                output_macro_path.parent.mkdir(parents=True, exist_ok=True)
+                output_macro_path.write_text(converted_macro)
+                print(f"Converted macro: {macro_path} → {output_macro_path}")
+            except Exception as e:
+                print(f"Error converting macro {macro_path}: {str(e)}")
+
+def main(dbt_repo_path: str, output_path: str, verbose: bool = False):
 
     # Initialize components
     analyzer = RepositoryAnalyzer(dbt_repo_path)
@@ -28,7 +71,7 @@ def main(dbt_repo_path: str, output_path: str, openai_api_key: str = None, verbo
     artifacts = analyzer.analyze()
     dbt_config = analyzer.get_project_config()
     conversion_report = ConversionReport(Path(output_path))
-    syntax_checker = SyntaxChecker(openai_api_key) if openai_api_key else None
+    syntax_checker = GeminiSyntaxChecker()
 
     # Extract project variables
     project_variables = dbt_config.get('vars', {})
@@ -60,10 +103,14 @@ def main(dbt_repo_path: str, output_path: str, openai_api_key: str = None, verbo
     source_converter = SourceConverter(Path(dbt_repo_path), Path(output_path))
     source_tables = source_converter.convert_sources()
     
-    if openai_api_key:
-        print("Converting macros...")
-        macro_converter = MacroConverter(openai_api_key)
-        macro_converter.convert_macros(dbt_repo_path, output_path)
+    print("Converting macros using Gemini...")
+    macro_converter = GeminiMacroConverter()
+    macro_converter.convert_macros(dbt_repo_path, output_path)
+
+    # if openai_api_key:
+    #    print("Converting macros...")
+    #    macro_converter = MacroConverter(openai_api_key)
+    #    macro_converter.convert_macros(dbt_repo_path, output_path)
 
     print("Converting models...")
     model_converter = ModelConverter(project_variables, dbt_models_dir, source_tables)
@@ -85,18 +132,14 @@ def main(dbt_repo_path: str, output_path: str, openai_api_key: str = None, verbo
 
             print(f"Converting model: {model_path.relative_to(dbt_models_dir)} to {output_file_path}")
 
-            # Check and correct syntax if OpenAI API key is provided
-            if syntax_checker:
-                print(f"Performing syntax check for {output_file_path}")
-                sqlx_content, corrections = syntax_checker.check_and_correct_syntax(output_file_path, sqlx_content, conversion_report)
-                if verbose and corrections:
-                    print(f"Syntax corrections for {output_file_path}:")
-                    print(corrections)
-            else:
-                print("Syntax checker not available. Skipping syntax check.")
+            # Use Gemini syntax checker
+            print(f"Performing syntax check for {output_file_path}")
+            sqlx_content, corrections = syntax_checker.check_and_correct_syntax(output_file_path, sqlx_content, conversion_report)
+            if verbose and corrections:
+                print(f"Syntax corrections for {output_file_path}: {corrections}")
 
             if not isinstance(sqlx_content, str):
-                print(f"Warning: sqlx_content is not a string. Type: {type(sqlx_content)}")
+                #print(f"Warning: sqlx_content is not a string. Type: {type(sqlx_content)}")
                 sqlx_content = str(sqlx_content) if sqlx_content is not None else ""
 
             print(f"Writing content to {output_file_path}")
@@ -117,10 +160,10 @@ def main(dbt_repo_path: str, output_path: str, openai_api_key: str = None, verbo
                 )
         except Exception as e:
             print(f"Error converting model: {model_path.relative_to(dbt_models_dir)}")
-            print(f"Error message: {str(e)}")
-            print("Traceback:")
+            #print(f"Error message: {str(e)}")
+            #print("Traceback:")
             traceback.print_exc()
-            print("Skipping this model and continuing with the next...")
+            #print("Skipping this model and continuing with the next...")
             conversion_report.add_issue(
                 str(model_path),
                 "Conversion Error",
@@ -139,38 +182,38 @@ def main(dbt_repo_path: str, output_path: str, openai_api_key: str = None, verbo
                 print(f"Converting metadata: {relative_path}")
                 dataform_sqlx = metadata_converter.convert_schema_yml(yaml_path)
                 if dataform_sqlx:
-                    if syntax_checker:
-                        print(f"Performing syntax check for metadata: {output_def_path}")
-                        dataform_sqlx, corrections = syntax_checker.check_and_correct_syntax(output_def_path, dataform_sqlx, conversion_report)
-                        if verbose and corrections:
-                            print(f"Syntax corrections for {output_def_path}:")
-                            print(corrections)
+                    #if syntax_checker:
+                    print(f"Performing syntax check for metadata: {output_def_path}")
+                    dataform_sqlx, corrections = syntax_checker.check_and_correct_syntax(output_def_path, dataform_sqlx, conversion_report)
+                    if verbose and corrections:
+                        print(f"Syntax corrections for {output_def_path}: {corrections}")
+                        #print(corrections)
                     output_def_path.write_text(dataform_sqlx)
                 else:
                     print(f"Skipping empty or invalid schema file: {yaml_path}")
             except Exception as e:
                 print(f"Error converting metadata: {relative_path}")
-                print(f"Error message: {str(e)}")
-                print("Traceback:")
+                #print(f"Error message: {str(e)}")
+                #print("Traceback:")
                 traceback.print_exc()
-                print("Skipping this metadata file and continuing with the next...")
+                #print("Skipping this metadata file and continuing with the next...")
 
-    if openai_api_key:
-        print("Updating macro references...")
-        macro_converter.update_macro_references(output_path)
+    #if openai_api_key:
+    #    print("Updating macro references...")
+    #    macro_converter.update_macro_references(output_path)
 
     conversion_report.generate_report()
 
     print("Conversion complete!")
     
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Convert dbt project to Dataform")
+    parser = argparse.ArgumentParser(description="Convert dbt project to Dataform using gemini")
     parser.add_argument("dbt_repo_path", help="Path to the local dbt repository")
     parser.add_argument("output_path", help="Path to output the Dataform project")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
-    parser.add_argument("--openai-api-key", help="OpenAI API key for complex conversions", default=None)
+    #parser.add_argument("--openai-api-key", help="OpenAI API key for complex conversions", default=None)
 
     args = parser.parse_args()
 
-    main(args.dbt_repo_path, args.output_path, args.openai_api_key, args.verbose)
+    main(args.dbt_repo_path, args.output_path, args.verbose)
 
