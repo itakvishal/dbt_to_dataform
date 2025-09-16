@@ -1,3 +1,4 @@
+```sql
 config {
   type: "table"
 }
@@ -11,3 +12,4 @@ products as (
 )
 
 select * from products
+```

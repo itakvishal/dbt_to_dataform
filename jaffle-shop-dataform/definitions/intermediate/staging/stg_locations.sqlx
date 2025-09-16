@@ -1,3 +1,4 @@
+```sql
 config {
   type: "table"
 }
@@ -24,10 +25,11 @@ renamed as (
         tax_rate,
 
         ---------- timestamps
-        DATE_TRUNC('opened_at', 'day') as opened_date
+        DATE_TRUNC(opened_at, DAY) as opened_date
 
     from source
 
 )
 
 select * from renamed
+```

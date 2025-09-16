@@ -1,3 +1,4 @@
+```sql
 config {
   type: "table"
 }
@@ -68,3 +69,4 @@ joined as (
 )
 
 select * from joined
+```

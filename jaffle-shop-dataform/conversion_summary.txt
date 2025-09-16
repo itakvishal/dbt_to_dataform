@@ -1,10 +1,14 @@
 Dataform Conversion Summary
 ===========================
 
-Total issues found: 1
+Total issues found: 2
 
 Issues that need attention:
 
 File: /Users/takvishal/Documents/dbt_to_dataform/jaffle-shop/models/staging/stg_supplies.sql
 Type: Unconverted dbt_utils Reference
 Description: This model still contains references to dbt_utils that couldn't be automatically converted.
+
+File: /Users/takvishal/Documents/dbt_to_dataform/jaffle-shop-dataform/definitions/intermediate/staging/stg_orders.sqlx
+Type: Syntax Check Failed
+Description: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'The model is overloaded. Please try again later.', 'status': 'UNAVAILABLE'}}

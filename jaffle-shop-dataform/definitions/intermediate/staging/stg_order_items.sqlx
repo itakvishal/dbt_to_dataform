@@ -1,3 +1,4 @@
+```sql
 config {
   type: "table"
 }
@@ -24,3 +25,4 @@ renamed as (
 )
 
 select * from renamed
+```
